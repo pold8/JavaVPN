@@ -9,10 +9,10 @@ public class Main {
         VPNConfig config = new VPNConfig();
 
         if(args.length > 0 && args[0].equalsIgnoreCase("server")) {
-            VPNServer server = new VPNServer();
+            VPNServer server = new VPNServer(config);
             server.start();
         }else {
-            VPNClient client = new VPNClient();
+            VPNClient client = new VPNClient(config);
             client.connect();
         }
     }

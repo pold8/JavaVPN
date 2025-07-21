@@ -2,13 +2,17 @@ package com.javavpn.server;
 
 import com.javavpn.config.VPNConfig;
 import com.javavpn.crypto.EncryptionHandler;
+import com.javavpn.network.TunnelManager;
+import com.javavpn.utils.LoggerUtil;
 
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.logging.Logger;
 
 public class VPNServer {
     private final VPNConfig config;
+    private static final Logger logger = LoggerUtil.createLogger(VPNServer.class);
 
     public VPNServer(VPNConfig config) {
         this.config = config;
@@ -16,27 +20,38 @@ public class VPNServer {
 
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(config.port)) {
-            System.out.println("VPN server started on port " + config.port);
+            logger.info("VPN server started on port " + config.port);
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Client connected: " + clientSocket.getInetAddress());
+                logger.info("Client connected: " + clientSocket.getInetAddress());
 
-                InputStream in = clientSocket.getInputStream();
-                byte[] buffer = new byte[1024];
-                int length = in.read(buffer);
-
-                byte[] received = new byte[length];
-                System.arraycopy(buffer, 0, received, 0, length);
-
-                byte[] decrypted = EncryptionHandler.decrypt(received, config.encryptionKey);
-                System.out.println("Decrypted message: " + new String(decrypted));
-
-                // Respond, route, etc.
+                // Thread per client
+                new Thread(() -> handleClient(clientSocket)).start();
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.severe("Server error: " + e.getMessage());
+        }
+    }
+
+    private void handleClient(Socket socket) {
+        try {
+            InputStream in = socket.getInputStream();
+            byte[] buffer = new byte[1024];
+            int length = in.read(buffer);
+
+            byte[] received = new byte[length];
+            System.arraycopy(buffer, 0, received, 0, length);
+
+            byte[] decrypted = EncryptionHandler.decrypt(received, config.encryptionKey);
+            logger.info("Decrypted message: " + new String(decrypted));
+
+            // Start tunnel thread
+            new TunnelManager().startTunnel(socket);
+
+        } catch (Exception e) {
+            logger.warning("Error handling client: " + e.getMessage());
         }
     }
 }
