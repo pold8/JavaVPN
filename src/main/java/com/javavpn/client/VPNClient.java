@@ -1,13 +1,15 @@
 package com.javavpn.client;
 
 import com.javavpn.config.VPNConfig;
-import com.javavpn.crypto.EncryptionHandler;
+import com.javavpn.utils.LoggerUtil;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
+import java.util.Scanner;
+import java.util.logging.Logger;
 
 public class VPNClient {
+    private static final Logger logger = LoggerUtil.createLogger(VPNClient.class);
     private final VPNConfig config;
 
     public VPNClient(VPNConfig config) {
@@ -15,21 +17,30 @@ public class VPNClient {
     }
 
     public void connect() {
-        try (Socket socket = new Socket(config.serverIp, config.port)) {
-            System.out.println("Connected to VPN server.");
+        try (Socket socket = new Socket(config.getHost(), config.getPort());
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+             Scanner scanner = new Scanner(System.in)) {
 
-            OutputStream out = socket.getOutputStream();
-            InputStream in = socket.getInputStream();
+            logger.info("Connected to VPN server.");
 
-            String msg = "Hello VPN Server!";
-            byte[] encrypted = EncryptionHandler.encrypt(msg.getBytes(), config.encryptionKey);
-            out.write(encrypted);
-            out.flush();
+            // Read welcome message
+            System.out.println(in.readLine());
 
-            // Handle response...
+            // Send messages from console
+            String input;
+            while (true) {
+                System.out.print("You > ");
+                input = scanner.nextLine();
+                out.write(input + "\n");
+                out.flush();
 
-        } catch (Exception e) {
-            e.printStackTrace();
+                String response = in.readLine();
+                System.out.println("Server > " + response);
+            }
+
+        } catch (IOException e) {
+            logger.severe("Client error: " + e.getMessage());
         }
     }
 }
