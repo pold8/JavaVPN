@@ -6,15 +6,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-/**
- * Loads VPN configuration from vpn.properties
- * and provides host/port mappings for different countries.
- */
 public class VPNConfig {
     private String host;
     private int port;
     private final Map<String, String> countryHosts = new HashMap<>();
 
+    // ✅ Default constructor: load from vpn.properties
     public VPNConfig() {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("vpn.properties")) {
             Properties prop = new Properties();
@@ -45,26 +42,24 @@ public class VPNConfig {
         }
     }
 
-    /** Default host */
+    // ✅ New constructor: manual override
+    public VPNConfig(String host, int port) {
+        this.host = host;
+        this.port = port;
+    }
+
     public String getHost() {
         return host;
     }
 
-    /** Default port */
     public int getPort() {
         return port;
     }
 
-    /**
-     * Get host for a specific country
-     */
     public String getHostForCountry(String countryCode) {
         return countryHosts.getOrDefault(countryCode.toUpperCase(), host);
     }
 
-    /**
-     * List available countries
-     */
     public Map<String, String> getAvailableCountries() {
         return countryHosts;
     }

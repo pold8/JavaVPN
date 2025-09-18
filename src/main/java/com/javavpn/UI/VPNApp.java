@@ -1,4 +1,4 @@
-package com.javavpn.ui;
+package com.javavpn.UI;
 
 import com.javavpn.client.VPNClient;
 import com.javavpn.config.VPNConfig;
