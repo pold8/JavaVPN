@@ -18,8 +18,9 @@ public class TunnelManager {
                     byte[] packet = new byte[length];
                     System.arraycopy(buffer, 0, packet, 0, length);
 
-                    // Process or redirect
-                    byte[] modified = PacketHandler.processPacket(packet);
+                    // Encrypt before sending (or decrypt depending on direction)
+                    byte[] modified = PacketHandler.encrypt(packet);
+
                     out.write(modified);
                 }
             } catch (Exception e) {

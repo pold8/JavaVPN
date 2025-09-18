@@ -1,6 +1,7 @@
 package com.javavpn.client;
 
 import com.javavpn.config.VPNConfig;
+import com.javavpn.network.PacketHandler;
 import com.javavpn.utils.LoggerUtil;
 
 import java.io.*;
@@ -18,29 +19,36 @@ public class VPNClient {
 
     public void connect() {
         try (Socket socket = new Socket(config.getHost(), config.getPort());
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+             DataInputStream in = new DataInputStream(socket.getInputStream());
+             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
              Scanner scanner = new Scanner(System.in)) {
 
             logger.info("Connected to VPN server.");
+            System.out.println(in.readUTF()); // welcome
 
-            // Read welcome message
-            System.out.println(in.readLine());
-
-            // Send messages from console
-            String input;
             while (true) {
-                System.out.print("You > ");
-                input = scanner.nextLine();
-                out.write(input + "\n");
+                System.out.print("Enter URL (e.g. http://example.com): ");
+                String url = scanner.nextLine();
+
+                // Encrypt request
+                byte[] encrypted = PacketHandler.encrypt(url.getBytes());
+                out.writeInt(encrypted.length);
+                out.write(encrypted);
                 out.flush();
 
-                String response = in.readLine();
-                System.out.println("Server > " + response);
+                // Read response
+                int length = in.readInt();
+                byte[] encryptedResp = new byte[length];
+                in.readFully(encryptedResp);
+
+                String response = new String(PacketHandler.decrypt(encryptedResp));
+                System.out.println("Response:\n" + response);
             }
 
         } catch (IOException e) {
             logger.severe("Client error: " + e.getMessage());
+        } catch (Exception e) {
+            logger.severe("Encryption error: " + e.getMessage());
         }
     }
 }

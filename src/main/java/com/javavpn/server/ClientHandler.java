@@ -1,7 +1,9 @@
 package com.javavpn.server;
 
+import com.javavpn.network.PacketHandler;
+
 import java.io.*;
-import java.net.Socket;
+import java.net.*;
 
 public class ClientHandler implements Runnable {
     private final Socket clientSocket;
@@ -13,20 +15,42 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try (
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                BufferedWriter out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()))
+                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
         ) {
-            out.write("Welcome to JavaVPN server!\n");
-            out.flush();
+            out.writeUTF("Welcome to JavaVPN server!");
 
-            String line;
-            while ((line = in.readLine()) != null) {
-                System.out.println("Received: " + line);
-                out.write("Echo: " + line + "\n");
+            while (true) {
+                int length = in.readInt();
+                byte[] encrypted = new byte[length];
+                in.readFully(encrypted);
+
+                // Decrypt request
+                byte[] decrypted = PacketHandler.decrypt(encrypted);
+                String request = new String(decrypted);
+
+                System.out.println("Client wants: " + request);
+
+                // === Simple HTTP GET forwarding ===
+                URL url = new URL(request);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) {
+                    response.append(line).append("\n");
+                }
+
+                // Encrypt response
+                byte[] encryptedResp = PacketHandler.encrypt(response.toString().getBytes());
+                out.writeInt(encryptedResp.length);
+                out.write(encryptedResp);
                 out.flush();
             }
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Client disconnected: " + e.getMessage());
         }
     }
